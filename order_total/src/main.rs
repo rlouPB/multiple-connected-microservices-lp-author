@@ -1,5 +1,6 @@
-#[macro_use]
-extern crate lazy_static;
+// #[macro_use]
+// extern crate lazy_static;
+use lazy_static::lazy_static;
 
 use std::net::SocketAddr;
 use std::convert::Infallible;
@@ -70,6 +71,30 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, anyhow::Er
             let mut order: Order = serde_json::from_slice(&byte_stream).unwrap();
 
             let client = reqwest::Client::new();
+            // let url = format!("https://api.zippopotam.us/us/{}", order.shipping_zip.clone());
+            // println!("{}", url);
+            // let zip_resp = reqwest::get(&url).await?.text().await?;
+            // println!("{}", zip_resp);
+            // if zip_resp.trim() == "{}" {
+            //     let mut not_found = Response::default();
+            //     *not_found.status_mut() = StatusCode::NOT_FOUND;
+            //     return Ok(not_found)
+            // }
+            let hyper_client = hyper::Client::new();
+            let end_point = format!("http://api.zippopotam.us/us/{}", order.shipping_zip.clone());
+            println!("end point : {:?}", end_point);
+            let url:hyper::Uri = end_point.parse()?;
+            println!("end point uri: {:?}", url);
+            let mut response = hyper_client.get(url).await?;
+            let body = hyper::body::to_bytes(response.body_mut()).await?;
+            println!("{:?}", body);
+            if body == "{}" {
+                let fmt = format!("Zip code {} not found", order.shipping_zip.clone());
+                let mut not_found = Response::new(Body::from(fmt));
+                *not_found.status_mut() = StatusCode::NOT_FOUND;
+                return Ok(not_found);
+            }
+
             let rate = client.post(&*SALES_TAX_RATE_SERVICE)
                 .body(order.shipping_zip.clone())
                 .send()
