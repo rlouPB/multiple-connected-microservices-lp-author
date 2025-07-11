@@ -5,6 +5,15 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, StatusCode, Server};
 use csv::Reader;
 
+use serde::Serialize;
+use serde::Deserialize;
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ErrorResponse {
+    status: String,
+    message: String,
+}
+
 /// This is our service handler. It receives a Request, routes on its
 /// path, and returns a Future of a Response.
 async fn handle_request(req: Request<Body>) -> Result<Response<Body>, anyhow::Error> {
@@ -28,10 +37,22 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, anyhow::Er
                     break;
                 }
             }
-
+            println!("the rate is {:?}", rate);
             if rate.is_empty() {
-                let mut not_found = Response::default();
-                *not_found.status_mut() = StatusCode::NOT_FOUND;
+                
+                let err = ErrorResponse {
+                    status: "error".to_string(),
+                    message: "The zip code in the order does not have a corresponding sales tax rate.".to_string(),
+                };
+                println!("{:?}", err);
+                let body = serde_json::to_string(&err).unwrap_or_else(|_| "{}".into());
+
+                let not_found = Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap() ;
+                println!("{:?}", not_found);
                 Ok(not_found)
             } else {
                 Ok(Response::new(Body::from(rate)))

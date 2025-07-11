@@ -71,40 +71,42 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, anyhow::Er
             let mut order: Order = serde_json::from_slice(&byte_stream).unwrap();
 
             let client = reqwest::Client::new();
-            // let url = format!("https://api.zippopotam.us/us/{}", order.shipping_zip.clone());
-            // println!("{}", url);
-            // let zip_resp = reqwest::get(&url).await?.text().await?;
-            // println!("{}", zip_resp);
-            // if zip_resp.trim() == "{}" {
-            //     let mut not_found = Response::default();
+            
+            // let hyper_client = hyper::Client::new();
+            // let end_point = format!("http://api.zippopotam.us/us/{}", order.shipping_zip.clone());
+            // println!("end point : {:?}", end_point);
+            // let url:hyper::Uri = end_point.parse()?;
+            // println!("end point uri: {:?}", url);
+            // let mut response = hyper_client.get(url).await?;
+            // let body = hyper::body::to_bytes(response.body_mut()).await?;
+            // println!("{:?}", body);
+            // if body == "{}" {
+            //     let fmt = format!("Zip code {} not found", order.shipping_zip.clone());
+            //     let mut not_found = Response::new(Body::from(fmt));
             //     *not_found.status_mut() = StatusCode::NOT_FOUND;
-            //     return Ok(not_found)
+            //     return Ok(not_found);
             // }
-            let hyper_client = hyper::Client::new();
-            let end_point = format!("http://api.zippopotam.us/us/{}", order.shipping_zip.clone());
-            println!("end point : {:?}", end_point);
-            let url:hyper::Uri = end_point.parse()?;
-            println!("end point uri: {:?}", url);
-            let mut response = hyper_client.get(url).await?;
-            let body = hyper::body::to_bytes(response.body_mut()).await?;
-            println!("{:?}", body);
-            if body == "{}" {
-                let fmt = format!("Zip code {} not found", order.shipping_zip.clone());
-                let mut not_found = Response::new(Body::from(fmt));
-                *not_found.status_mut() = StatusCode::NOT_FOUND;
-                return Ok(not_found);
-            }
 
-            let rate = client.post(&*SALES_TAX_RATE_SERVICE)
+            let rate_response = client.post(&*SALES_TAX_RATE_SERVICE)
                 .body(order.shipping_zip.clone())
                 .send()
-                .await?
-                .text()
-                .await?
-                .parse::<f32>()?;
-
-            order.total = order.subtotal * (1.0 + rate);
-            Ok(response_build(&serde_json::to_string_pretty(&order)?))
+                .await?;
+            println!("{:?}", rate_response);
+            
+            if rate_response.status() == StatusCode::OK {
+                let rate = rate_response
+                        .text()
+                        .await?
+                        .parse::<f32>()?;
+                    order.total = order.subtotal * (1.0 + rate);
+                    Ok(response_build(&serde_json::to_string_pretty(&order)?))
+            } else if rate_response.status() == StatusCode::NOT_FOUND {
+                eprintln!("Error 404 Not Found. Body: {:?}", rate_response);
+                let msg = rate_response.text().await.unwrap();
+                Ok(response_build(&msg))
+            } else {
+                Ok(response_build("Unknown error!"))
+            }
         }
 
         // Return the 404 Not Found for other routes.
