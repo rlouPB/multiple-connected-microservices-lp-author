@@ -63,6 +63,17 @@ jobs:
           echo -e "Execution Fail!"
           exit 1
         fi
+
+        sleep 15
+        resp=$(curl http://localhost:8002/compute -X POST -d @order-invalid.json)
+        echo "$resp"
+        if [[ $resp == *"The zip code in the order does not have a corresponding sales tax rate."* ]]; then
+          echo -e "Execution Success!"
+        else
+          echo -e "Execution Fail!"
+          exit 1
+        fi
+
         kill -9 `cat sales_tax_rate/sales_tax_rate.pid`
         rm sales_tax_rate/sales_tax_rate.pid
         kill -9 `cat order_total/order_total.pid`
