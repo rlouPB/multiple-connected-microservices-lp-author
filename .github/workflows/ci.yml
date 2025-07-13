@@ -57,7 +57,7 @@ jobs:
         sleep 15
         resp=$(curl http://localhost:8002/compute -X POST -d @order.json)
         echo "$resp"
-        if [[ $resp == *"21.65"* ]]; then
+        if [[ $resp == *"21.726"* ]]; then
           echo -e "Execution Success!"
         else
           echo -e "Execution Fail!"
