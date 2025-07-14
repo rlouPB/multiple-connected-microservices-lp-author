@@ -11,7 +11,7 @@
     alert("Error:" + err);
   }
 
-  function onComputeButton() {
+  async function onComputeButton() {
     const data = {
       order_id : parseFloat(orderIdField.value),
       product_id : parseFloat(productIdField.value),
@@ -22,15 +22,28 @@
       total : 0.0,
     };
 
-    fetch("http://localhost:8002/compute", {
-      method: "POST",
-      body: JSON.stringify(data),
-      headers: { "Content-type": "application/json" },
-    })
-    .then(response => response.json())
-    .then(json => updateOrderForm(json));
+    try {
+      const response =  await fetch("http://localhost:8002/compute", {
+        method: "POST",
+        body: JSON.stringify(data),
+        headers: { "Content-type": "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}`);
+      } else {
+        if (response.status === 202) {
+          const result = await response.json();
+          alert(result.message);
+        } else {
+          const result = await response.json();
+          console.log("Success:", result);
+          updateOrderForm(result);  // Assume this is your UI update function
+        }
+      }
+    } catch (error) {
+      console.error("Fetch error:", error.message);
+    }
   }
-
   function updateOrderForm(json) {
     alert("The order total for " + json.order_id + " has been updated to " + json.total);
     totalField.value = json.total;

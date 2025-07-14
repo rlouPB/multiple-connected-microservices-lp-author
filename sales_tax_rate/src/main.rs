@@ -44,7 +44,7 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, anyhow::Er
                     status: "error".to_string(),
                     message: "The zip code in the order does not have a corresponding sales tax rate.".to_string(),
                 };
-                println!("{:?}", err);
+                println!("error => {:?}", err);
                 let body = serde_json::to_string(&err).unwrap_or_else(|_| "{}".into());
 
                 let not_found = Response::builder()

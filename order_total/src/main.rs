@@ -59,7 +59,7 @@ impl Order {
 async fn handle_request(req: Request<Body>) -> Result<Response<Body>, anyhow::Error> {
     match (req.method(), req.uri().path()) {
         // CORS OPTIONS
-        (&Method::OPTIONS, "/compute") => Ok(response_build(&String::from(""))),
+        (&Method::OPTIONS, "/compute") => Ok(response_build(&String::from(""), StatusCode::OK)),
 
         // Serve some instructions at /
         (&Method::GET, "/") => Ok(Response::new(Body::from(
@@ -99,13 +99,21 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, anyhow::Er
                         .await?
                         .parse::<f32>()?;
                     order.total = order.subtotal * (1.0 + rate);
-                    Ok(response_build(&serde_json::to_string_pretty(&order)?))
+                    Ok(response_build(&serde_json::to_string_pretty(&order)?, StatusCode::OK))
             } else if rate_response.status() == StatusCode::NOT_FOUND {
-                eprintln!("Error 404 Not Found. Body: {:?}", rate_response);
+                //eprintln!("Error 404 Not Found. Body: {:?}", rate_response);
                 let msg = rate_response.text().await.unwrap();
-                Ok(response_build(&msg))
+                // println!("---->{:?}", msg);
+                // let not_found = Response::builder()
+                //     .status(StatusCode::ACCEPTED)
+                //     .header("Content-Type", "application/json")
+                //     .body(Body::from(msg))
+                //     .unwrap() ;
+                // println!("---->{:?}", not_found);
+                // Ok(not_found)
+                Ok(response_build(&msg, StatusCode::ACCEPTED))
             } else {
-                Ok(response_build("Unknown error!"))
+                Ok(response_build("Unknown error!", StatusCode::BAD_REQUEST))
             }
         }
 
@@ -119,8 +127,9 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, anyhow::Er
 }
 
 // CORS headers
-fn response_build(body: &str) -> Response<Body> {
+fn response_build(body: &str, status : StatusCode) -> Response<Body> {
     Response::builder()
+        .status(status)
         .header("Access-Control-Allow-Origin", "*")
         .header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         .header("Access-Control-Allow-Headers", "api,Keep-Alive,User-Agent,Content-Type")
